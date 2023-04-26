@@ -336,9 +336,9 @@ int readFileOrderList() {
 
   // Function to handle sixth button action (select next file)
   void handleSixthButton() {
-    selectNextFile(); / Select next file in list 
-    Serial.print("Selected next file: "); / Print message 
-    Serial.println(currentFile); / Print current file name 
+    selectNextFile(); // Select next file in list 
+    Serial.print("Selected next file: "); // Print message 
+    Serial.println(currentFile); // Print current file name 
   }
 
 //Source: Conversation with Bing, 4/26/2023
