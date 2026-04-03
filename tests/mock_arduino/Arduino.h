@@ -5,11 +5,17 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <algorithm>
 
 typedef uint8_t byte;
 
 #define HIGH 0x1
 #define LOW  0x0
+
+#define DEC 10
+#define HEX 16
+#define OCT 8
+#define BIN 2
 
 #define bit(b) (1UL << (b))
 
@@ -31,7 +37,7 @@ public:
     String(const char* s = "") : std::string(s) {}
     String(const std::string& s) : std::string(s) {}
     String(const std::string* s) : std::string(*s) {}
-    int length() const { return std::string::length(); }
+    int length() const { return (int)std::string::length(); }
     bool endsWith(const String& suffix) const {
         if (suffix.length() > length()) return false;
         return std::string::compare(length() - suffix.length(), suffix.length(), suffix) == 0;
@@ -55,6 +61,34 @@ public:
         }
     }
 };
+
+class MockSerial {
+public:
+    void begin(int baud) {}
+    void print(const char* s) { std::cout << s; }
+    void print(const String& s) { std::cout << s.c_str(); }
+    void print(int n, int base = DEC) {
+        if (base == HEX) std::cout << std::hex << n << std::dec;
+        else std::cout << n;
+    }
+    void print(unsigned int n, int base = DEC) {
+        if (base == HEX) std::cout << std::hex << n << std::dec;
+        else std::cout << n;
+    }
+    void println(const char* s) { std::cout << s << std::endl; }
+    void println(const String& s) { std::cout << s.c_str() << std::endl; }
+    void println(int n, int base = DEC) {
+        if (base == HEX) std::cout << std::hex << n << std::dec << std::endl;
+        else std::cout << n << std::endl;
+    }
+    void println(unsigned int n, int base = DEC) {
+        if (base == HEX) std::cout << std::hex << n << std::dec << std::endl;
+        else std::cout << n << std::endl;
+    }
+    void println(std::string s) { std::cout << s << std::endl; }
+};
+
+extern MockSerial Serial;
 
 void pinMode(int pin, int mode);
 void digitalWrite(int pin, int val);

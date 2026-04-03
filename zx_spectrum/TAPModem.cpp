@@ -3,17 +3,22 @@
 TAPModem::TAPModem(int pin) {
   _pin = pin;
   _state = LOW;
+  _inverted = false;
 }
 
 void TAPModem::begin() {
   pinMode(_pin, OUTPUT);
-  digitalWrite(_pin, LOW);
+  digitalWrite(_pin, _inverted ? HIGH : LOW);
+}
+
+void TAPModem::setInverted(bool inverted) {
+  _inverted = inverted;
 }
 
 void TAPModem::pulse(uint32_t t_states) {
   _state = !_state;
   // Use a local variable to avoid issues with _state toggle
-  int val = _state ? HIGH : LOW;
+  int val = (_state ^ _inverted) ? HIGH : LOW;
   digitalWrite(_pin, val);
 
   // Convert T-states to microseconds for delay
@@ -84,10 +89,33 @@ void TAPModem::tone(int freq, uint32_t duration_us) {
 
   for (int i = 0; i < cycles; i++) {
     _state = HIGH;
-    digitalWrite(_pin, _state);
+    digitalWrite(_pin, (_state ^ _inverted) ? HIGH : LOW);
     delayMicroseconds((unsigned int)halfPeriod);
     _state = LOW;
-    digitalWrite(_pin, _state);
+    digitalWrite(_pin, (_state ^ _inverted) ? HIGH : LOW);
     delayMicroseconds((unsigned int)(period - (int)halfPeriod));
   }
+}
+
+void TAPModem::sendBasicHeader(String filename, uint16_t type, uint16_t length, uint16_t param1, uint16_t param2) {
+  byte header[18];
+  header[0] = type & 0xFF;
+
+  // Filename 10 bytes
+  for (int i = 0; i < 10; i++) {
+    if (i < (int)filename.length()) {
+      header[1 + i] = filename[i];
+    } else {
+      header[1 + i] = ' ';
+    }
+  }
+
+  header[11] = length & 0xFF;
+  header[12] = (length >> 8) & 0xFF;
+  header[13] = param1 & 0xFF;
+  header[14] = (param1 >> 8) & 0xFF;
+  header[15] = param2 & 0xFF;
+  header[16] = (param2 >> 8) & 0xFF;
+
+  sendBlock(0x00, header, 17);
 }

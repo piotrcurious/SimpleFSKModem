@@ -1,9 +1,17 @@
-
 #include "SimpleFSKModem.h"
 
 // Constructor that takes an optional pin number for audio output
 SimpleFSKModem::SimpleFSKModem(int pin) {
   _pin = pin; // Store the pin number
+  setParameters(DEFAULT_FSK_MARK_FREQ, DEFAULT_FSK_SPACE_FREQ, DEFAULT_FSK_BAUD_RATE);
+}
+
+// Method to set FSK parameters
+void SimpleFSKModem::setParameters(int markFreq, int spaceFreq, int baudRate) {
+  _markFreq = markFreq;
+  _spaceFreq = spaceFreq;
+  _baudRate = baudRate;
+  _bitDurationUs = (1000000UL / baudRate);
 }
 
 // Method to initialize the library
@@ -20,9 +28,9 @@ void SimpleFSKModem::sendByte(byte data) {
 
     // Generate a tone of the corresponding frequency (mark or space) for one bit duration
     if (bit == 0) {
-      tone(FSK_MARK_FREQ, FSK_BIT_DURATION);
+      tone(_markFreq, _bitDurationUs);
     } else {
-      tone(FSK_SPACE_FREQ, FSK_BIT_DURATION);
+      tone(_spaceFreq, _bitDurationUs);
     }
   }
 }
