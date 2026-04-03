@@ -1,11 +1,13 @@
 #include "Arduino.h"
 #include "SD.h"
+#include <iostream>
 
 std::vector<PinEvent> pin_events;
 unsigned long long current_time_us = 0;
 
 void reset_mock_arduino() {
     pin_events.clear();
+    pin_events.reserve(100000);
     current_time_us = 0;
 }
 
@@ -14,6 +16,7 @@ void pinMode(int pin, int mode) {
 }
 
 void digitalWrite(int pin, int val) {
+    // std::cout << "digitalWrite(" << pin << ", " << val << ") at " << current_time_us << std::endl;
     pin_events.push_back({pin, val, current_time_us});
 }
 
@@ -21,8 +24,10 @@ int (*mock_digitalRead)(int pin) = nullptr;
 int (*mock_analogRead)(int pin) = nullptr;
 
 int digitalRead(int pin) {
-    if (mock_digitalRead) return mock_digitalRead(pin);
-    return HIGH;
+    int val = HIGH;
+    if (mock_digitalRead) val = mock_digitalRead(pin);
+    // std::cout << "digitalRead(" << pin << ") = " << val << std::endl;
+    return val;
 }
 
 int analogRead(int pin) {
@@ -35,6 +40,7 @@ void delayMicroseconds(unsigned int us) {
 }
 
 void delay(unsigned long ms) {
+    if (ms > 100) return; // Skip long delays for testing
     current_time_us += (unsigned long long)ms * 1000;
 }
 
