@@ -4,6 +4,12 @@ TAPModem::TAPModem(int pin) {
   _pin = pin;
   _state = LOW;
   _inverted = false;
+
+  _pilotUs = (uint16_t)(TAP_PILOT_T * TAP_TSTATE_US + 0.5);
+  _sync1Us = (uint16_t)(TAP_SYNC1_T * TAP_TSTATE_US + 0.5);
+  _sync2Us = (uint16_t)(TAP_SYNC2_T * TAP_TSTATE_US + 0.5);
+  _zeroUs  = (uint16_t)(TAP_ZERO_T  * TAP_TSTATE_US + 0.5);
+  _oneUs   = (uint16_t)(TAP_ONE_T   * TAP_TSTATE_US + 0.5);
 }
 
 void TAPModem::begin() {
@@ -15,32 +21,29 @@ void TAPModem::setInverted(bool inverted) {
   _inverted = inverted;
 }
 
-void TAPModem::pulse(uint32_t t_states) {
+void TAPModem::pulse(uint16_t us) {
   _state = !_state;
   // Use a local variable to avoid issues with _state toggle
   int val = (_state ^ _inverted) ? HIGH : LOW;
   digitalWrite(_pin, val);
-
-  // Convert T-states to microseconds for delay
-  // Using float for precision during delay calculation
-  delayMicroseconds((unsigned int)(t_states * TAP_TSTATE_US + 0.5));
+  delayMicroseconds(us);
 }
 
-void TAPModem::sendPilot(int pulses) {
+void TAPModem::sendPilot(int pulses, bool startState) {
   for (int i = 0; i < pulses; i++) {
-    pulse(TAP_PILOT_T);
+    pulse(_pilotUs);
   }
 }
 
 void TAPModem::sendSync() {
-  pulse(TAP_SYNC1_T);
-  pulse(TAP_SYNC2_T);
+  pulse(_sync1Us);
+  pulse(_sync2Us);
 }
 
 void TAPModem::sendBit(bool bit) {
-  uint32_t t = bit ? TAP_ONE_T : TAP_ZERO_T;
-  pulse(t);
-  pulse(t);
+  uint16_t us = bit ? _oneUs : _zeroUs;
+  pulse(us);
+  pulse(us);
 }
 
 void TAPModem::sendByte(byte data) {
@@ -77,8 +80,13 @@ void TAPModem::sendRawBlock(byte* buffer, int length) {
     sendByte(buffer[i]);
   }
 
-  // Pause after block (ZX Spectrum usually pauses 1 second after a block)
-  delay(1000);
+  // Standard inter-block pause
+  pause(1000);
+}
+
+void TAPModem::pause(uint32_t ms) {
+    // End the waveform at the current state
+    delay(ms);
 }
 
 // Method to generate a tone of a given frequency and duration on the audio output pin

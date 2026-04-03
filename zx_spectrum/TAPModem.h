@@ -33,10 +33,10 @@ class TAPModem {
     void begin();
 
     // Low-level pulse generation
-    void pulse(uint32_t t_states);
+    void pulse(uint16_t us);
 
     // TAP components
-    void sendPilot(int pulses);
+    void sendPilot(int pulses, bool startState = LOW);
     void sendSync();
     void sendBit(bool bit);
     void sendByte(byte data);
@@ -57,10 +57,19 @@ class TAPModem {
     // New: Send a string as a Basic header
     void sendBasicHeader(String filename, uint16_t type, uint16_t length, uint16_t param1, uint16_t param2);
 
+    // Standard inter-block pause
+    void pause(uint32_t ms = 1000);
+
   private:
     int _pin;
     bool _state;
     bool _inverted;
+
+    uint16_t _pilotUs;
+    uint16_t _sync1Us;
+    uint16_t _sync2Us;
+    uint16_t _zeroUs;
+    uint16_t _oneUs;
 };
 
 #endif
