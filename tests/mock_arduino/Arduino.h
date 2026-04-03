@@ -11,11 +11,18 @@ typedef uint8_t byte;
 #define HIGH 0x1
 #define LOW  0x0
 
+#define bit(b) (1UL << (b))
+
 #define INPUT 0x0
 #define OUTPUT 0x1
 #define INPUT_PULLUP 0x2
 
 #define A0 14
+
+#define BTN_NEXT 7
+#define BTN_PREV 6
+#define BTN_SEND 3
+#define BTN_EJECT 8
 
 #define bitRead(value, bit) (((value) >> (bit)) & 0x01)
 
@@ -25,6 +32,10 @@ public:
     String(const std::string& s) : std::string(s) {}
     String(const std::string* s) : std::string(*s) {}
     int length() const { return std::string::length(); }
+    bool endsWith(const String& suffix) const {
+        if (suffix.length() > length()) return false;
+        return std::string::compare(length() - suffix.length(), suffix.length(), suffix) == 0;
+    }
     const char* c_str() const { return std::string::c_str(); }
     void trim() {
         size_t first = find_first_not_of(" \t\n\r");
