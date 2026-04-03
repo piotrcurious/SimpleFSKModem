@@ -41,7 +41,7 @@ class SimpleFSKModem {
     int _pin;
 
     // Method to generate a tone of a given frequency and duration on the audio output pin
-    void tone(int freq, int duration);
+    void tone(int freq, uint32_t duration_us);
 };
 
 #endif

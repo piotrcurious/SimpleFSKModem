@@ -8,7 +8,7 @@
 #define FSK_MARK_FREQ 1200 // Mark frequency in Hz
 #define FSK_SPACE_FREQ 2200 // Space frequency in Hz
 #define FSK_BAUD_RATE 300 // Baud rate in bits per second
-#define FSK_BIT_DURATION (1000 / FSK_BAUD_RATE) // Bit duration in milliseconds
+#define FSK_BIT_DURATION (1000000 / FSK_BAUD_RATE) // Bit duration in microseconds
 
 // Define some constants for the audio output
 #define FSK_AUDIO_PIN 9 // Pin number for audio output
@@ -37,7 +37,7 @@ class SimpleFSKModem {
     int _pin;
 
     // Method to generate a tone of a given frequency and duration on the audio output pin
-    void tone(int freq, int duration);
+    void tone(int freq, uint32_t duration_us);
 };
 
 #endif
