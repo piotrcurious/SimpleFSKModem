@@ -51,9 +51,16 @@ class TAPModem {
     // Method to generate a tone (reused from SimpleFSKModem)
     void tone(int freq, uint32_t duration_us);
 
+    // New: Support for inverted signals
+    void setInverted(bool inverted);
+
+    // New: Send a string as a Basic header
+    void sendBasicHeader(String filename, uint16_t type, uint16_t length, uint16_t param1, uint16_t param2);
+
   private:
     int _pin;
     bool _state;
+    bool _inverted;
 };
 
 #endif

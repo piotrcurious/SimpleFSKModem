@@ -14,6 +14,7 @@
 TAPModem modem(FSK_AUDIO_PIN);
 String currentTAPFile = "";
 bool selectMode = true;
+bool paused = false;
 
 // Function prototypes
 void selectNextTAPFile();
@@ -41,6 +42,7 @@ void setup() {
 void loop() {
   if (digitalRead(BTN_EJECT) == LOW) {
     selectMode = true;
+    paused = false;
     Serial.println("Eject: Entering Select Mode");
     delay(500);
   }
@@ -65,6 +67,10 @@ void loop() {
       sendTAPFile(currentTAPFile);
       delay(500);
     }
+
+    // BTN_NEXT could act as pause/resume in play mode if we were mid-file
+    // but sendTAPFile is currently blocking. To support pause, we need to
+    // refactor sendTAPFile to be non-blocking.
   }
 }
 
@@ -143,6 +149,25 @@ void sendTAPFile(String fileName) {
   Serial.println("Sending: " + fileName);
 
   while (tapFile.available() >= 2) {
+    // Check for EJECT or PAUSE
+    if (digitalRead(BTN_EJECT) == LOW) {
+      Serial.println("Interrupted by EJECT");
+      selectMode = true;
+      break;
+    }
+
+    // BTN_NEXT for Pause
+    if (digitalRead(BTN_NEXT) == LOW) {
+      paused = !paused;
+      Serial.println(paused ? "Paused" : "Resumed");
+      delay(500);
+    }
+
+    if (paused) {
+      delay(100);
+      continue;
+    }
+
     // Read block length (16-bit little endian)
     int lsb = tapFile.read();
     int msb = tapFile.read();
@@ -165,12 +190,16 @@ void sendTAPFile(String fileName) {
     }
 
     Serial.print("Sending block, size: ");
-    Serial.println(length);
+    Serial.print(length);
+    Serial.print(" Flag: 0x");
+    Serial.println(buffer[0], HEX);
 
     modem.sendRawBlock(buffer, length);
     free(buffer);
   }
 
   tapFile.close();
-  Serial.println("Done.");
+  if (!selectMode) {
+    Serial.println("Done.");
+  }
 }

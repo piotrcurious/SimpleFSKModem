@@ -1,9 +1,17 @@
-
 #include "SimpleFSKModem.h"
 
 // Constructor that takes an optional pin number for audio output
 SimpleFSKModem::SimpleFSKModem(int pin) {
   _pin = pin; // Store the pin number
+  setParameters(DEFAULT_FSK_MARK_FREQ, DEFAULT_FSK_SPACE_FREQ, DEFAULT_FSK_BAUD_RATE);
+}
+
+// Method to set FSK parameters
+void SimpleFSKModem::setParameters(int markFreq, int spaceFreq, int baudRate) {
+  _markFreq = markFreq;
+  _spaceFreq = spaceFreq;
+  _baudRate = baudRate;
+  _bitDurationUs = (1000000UL / baudRate);
 }
 
 // Method to initialize the library
@@ -20,9 +28,9 @@ void SimpleFSKModem::sendByte(byte data) {
 
     // Generate a tone of the corresponding frequency (mark or space) for one bit duration
     if (bit == 0) {
-      tone(FSK_MARK_FREQ, FSK_BIT_DURATION);
+      tone(_markFreq, _bitDurationUs);
     } else {
-      tone(FSK_SPACE_FREQ, FSK_BIT_DURATION);
+      tone(_spaceFreq, _bitDurationUs);
     }
   }
 }
@@ -44,21 +52,21 @@ void SimpleFSKModem::sendString(String data) {
   sendBytes(buffer, length);
 }
 
-  // Method to generate a tone of a given frequency and duration on the audio output pin
-  void SimpleFSKModem::tone(int freq, uint32_t duration_us) {
-    // Calculate the period of the waveform in microseconds
-    // Use float for better precision during calculation
-    float period = 1000000.0 / freq;
-    float halfPeriod = period / 2.0;
+// Method to generate a tone of a given frequency and duration on the audio output pin
+void SimpleFSKModem::tone(int freq, uint32_t duration_us) {
+  // Calculate the period of the waveform in microseconds
+  // Use float for better precision during calculation
+  float period = 1000000.0 / freq;
+  float halfPeriod = period / 2.0;
 
-    // Calculate the number of cycles to generate for the given duration
-    int cycles = (int)((float)duration_us / period + 0.5); // Round to nearest cycle
+  // Calculate the number of cycles to generate for the given duration
+  int cycles = (int)((float)duration_us / period + 0.5); // Round to nearest cycle
 
-    // Loop through each cycle and toggle the pin state
-    for (int i = 0; i < cycles; i++) {
-      digitalWrite(_pin, HIGH); // Set the pin high
-      delayMicroseconds((unsigned int)halfPeriod); // Wait for half a period
-      digitalWrite(_pin, LOW); // Set the pin low
-      delayMicroseconds((unsigned int)(period - (int)halfPeriod)); // Wait for the rest of the period to maintain timing
-    }
+  // Loop through each cycle and toggle the pin state
+  for (int i = 0; i < cycles; i++) {
+    digitalWrite(_pin, HIGH); // Set the pin high
+    delayMicroseconds((unsigned int)halfPeriod); // Wait for half a period
+    digitalWrite(_pin, LOW); // Set the pin low
+    delayMicroseconds((unsigned int)(period - (int)halfPeriod)); // Wait for the rest of the period to maintain timing
   }
+}
