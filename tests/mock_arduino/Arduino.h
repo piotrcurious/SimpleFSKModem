@@ -15,13 +15,26 @@ typedef uint8_t byte;
 #define OUTPUT 0x1
 #define INPUT_PULLUP 0x2
 
+#define A0 14
+
 #define bitRead(value, bit) (((value) >> (bit)) & 0x01)
 
 class String : public std::string {
 public:
     String(const char* s = "") : std::string(s) {}
     String(const std::string& s) : std::string(s) {}
+    String(const std::string* s) : std::string(*s) {}
     int length() const { return std::string::length(); }
+    const char* c_str() const { return std::string::c_str(); }
+    void trim() {
+        size_t first = find_first_not_of(" \t\n\r");
+        if (std::string::npos == first) {
+            clear();
+            return;
+        }
+        size_t last = find_last_not_of(" \t\n\r");
+        *this = substr(first, (last - first + 1));
+    }
     void getBytes(byte* buffer, int len) const {
         for (int i = 0; i < len - 1 && i < (int)length(); ++i) {
             buffer[i] = (byte)(*this)[i];
@@ -34,8 +47,14 @@ public:
 
 void pinMode(int pin, int mode);
 void digitalWrite(int pin, int val);
+extern int (*mock_digitalRead)(int pin);
+extern int (*mock_analogRead)(int pin);
+int digitalRead(int pin);
+int analogRead(int pin);
 void delayMicroseconds(unsigned int us);
 void delay(unsigned long ms);
+
+long map(long x, long in_min, long in_max, long out_min, long out_max);
 
 struct PinEvent {
     int pin;
