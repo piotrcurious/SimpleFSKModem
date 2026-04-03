@@ -77,8 +77,13 @@ void TAPModem::sendRawBlock(byte* buffer, int length) {
     sendByte(buffer[i]);
   }
 
-  // Pause after block (ZX Spectrum usually pauses 1 second after a block)
-  delay(1000);
+  // Standard inter-block pause
+  pause(1000);
+}
+
+void TAPModem::pause(uint32_t ms) {
+    // End the waveform at the current state
+    delay(ms);
 }
 
 // Method to generate a tone of a given frequency and duration on the audio output pin

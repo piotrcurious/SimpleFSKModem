@@ -179,23 +179,42 @@ void sendTAPFile(String fileName) {
       break;
     }
 
-    byte* buffer = (byte*)malloc(length);
-    if (!buffer) {
-      Serial.println("Out of memory");
-      break;
-    }
-    int readLen = tapFile.read(buffer, (size_t)length);
-    if (readLen != length) {
-       Serial.println("Read error");
-    }
+    // Read the flag byte (first byte of the block)
+    byte flagByte = tapFile.read();
 
     Serial.print("Sending block, size: ");
     Serial.print(length);
     Serial.print(" Flag: 0x");
-    Serial.println(buffer[0], HEX);
+    Serial.println(flagByte, HEX);
 
-    modem.sendRawBlock(buffer, length);
-    free(buffer);
+    // Start playback: Pilot and Sync
+    modem.sendPilot(flagByte == 0x00 ? TAP_PILOT_HEADER_PULSES : TAP_PILOT_DATA_PULSES);
+    modem.sendSync();
+
+    // Send flag byte
+    modem.sendByte(flagByte);
+    byte checksum = flagByte;
+
+    // Send data bytes streaming from SD
+    for (uint16_t i = 1; i < length - 1; i++) {
+        byte b = tapFile.read();
+        modem.sendByte(b);
+        checksum ^= b;
+    }
+
+    // Final byte is the stored checksum
+    byte storedChecksum = tapFile.read();
+    modem.sendByte(storedChecksum);
+
+    if (checksum != storedChecksum) {
+      Serial.print("Checksum Error! Calculated: 0x");
+      Serial.print(checksum, HEX);
+      Serial.print(" Stored: 0x");
+      Serial.println(storedChecksum, HEX);
+    }
+
+    // Inter-block pause
+    delay(1000);
   }
 
   tapFile.close();

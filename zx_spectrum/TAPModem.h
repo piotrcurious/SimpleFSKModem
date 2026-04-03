@@ -57,6 +57,9 @@ class TAPModem {
     // New: Send a string as a Basic header
     void sendBasicHeader(String filename, uint16_t type, uint16_t length, uint16_t param1, uint16_t param2);
 
+    // Standard inter-block pause
+    void pause(uint32_t ms = 1000);
+
   private:
     int _pin;
     bool _state;

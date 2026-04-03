@@ -17,6 +17,7 @@ public:
     File(std::string name, std::string content) : _name(name), _content(content), _pos(0), _open(true), _sd(nullptr) {}
 
     int read();
+    int peek();
     int read(byte* buffer, size_t len);
     bool available();
     void close();
@@ -88,6 +89,13 @@ private:
 inline int File::read() {
     if (_pos < (int)_content.length()) {
         return (unsigned char)_content[_pos++];
+    }
+    return -1;
+}
+
+inline int File::peek() {
+    if (_pos < (int)_content.length()) {
+        return (unsigned char)_content[_pos];
     }
     return -1;
 }

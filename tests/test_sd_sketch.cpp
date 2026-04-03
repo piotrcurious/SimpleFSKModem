@@ -3,19 +3,6 @@
 #include <iostream>
 #include <map>
 
-// Mock Serial
-class MockSerial {
-public:
-    void begin(int baud) {}
-    void print(const char* s) { std::cout << s; }
-    void print(String s) { std::cout << s.c_str(); }
-    void print(int n) { std::cout << n; }
-    void println(const char* s) { std::cout << s << std::endl; }
-    void println(String s) { std::cout << s.c_str() << std::endl; }
-    void println(int n) { std::cout << n << std::endl; }
-};
-MockSerial Serial;
-
 // Map button pins to states
 std::map<int, int> button_states;
 int my_digitalRead(int pin) {
