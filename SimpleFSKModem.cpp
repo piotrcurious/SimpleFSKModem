@@ -45,19 +45,20 @@ void SimpleFSKModem::sendString(String data) {
 }
 
   // Method to generate a tone of a given frequency and duration on the audio output pin
-  void SimpleFSKModem::tone(int freq, int duration) {
-    // Calculate the period and half-period of the waveform in microseconds
-    int period = 1000000 / freq;
-    int halfPeriod = period / 2;
+  void SimpleFSKModem::tone(int freq, uint32_t duration_us) {
+    // Calculate the period of the waveform in microseconds
+    // Use float for better precision during calculation
+    float period = 1000000.0 / freq;
+    float halfPeriod = period / 2.0;
 
-    // Calculate the number of cycles to generate for the given duration in milliseconds
-    int cycles = duration * freq / 1000;
+    // Calculate the number of cycles to generate for the given duration
+    int cycles = (int)((float)duration_us / period + 0.5); // Round to nearest cycle
 
     // Loop through each cycle and toggle the pin state
     for (int i = 0; i < cycles; i++) {
       digitalWrite(_pin, HIGH); // Set the pin high
-      delayMicroseconds(halfPeriod); // Wait for half a period
+      delayMicroseconds((unsigned int)halfPeriod); // Wait for half a period
       digitalWrite(_pin, LOW); // Set the pin low
-      delayMicroseconds(halfPeriod); // Wait for another half a period
+      delayMicroseconds((unsigned int)(period - (int)halfPeriod)); // Wait for the rest of the period to maintain timing
     }
   }
