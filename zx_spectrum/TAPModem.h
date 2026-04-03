@@ -33,10 +33,10 @@ class TAPModem {
     void begin();
 
     // Low-level pulse generation
-    void pulse(uint32_t t_states);
+    void pulse(uint16_t us);
 
     // TAP components
-    void sendPilot(int pulses);
+    void sendPilot(int pulses, bool startState = LOW);
     void sendSync();
     void sendBit(bool bit);
     void sendByte(byte data);
@@ -64,6 +64,12 @@ class TAPModem {
     int _pin;
     bool _state;
     bool _inverted;
+
+    uint16_t _pilotUs;
+    uint16_t _sync1Us;
+    uint16_t _sync2Us;
+    uint16_t _zeroUs;
+    uint16_t _oneUs;
 };
 
 #endif

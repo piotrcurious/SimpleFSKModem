@@ -19,7 +19,7 @@ public:
     int read();
     int peek();
     int read(byte* buffer, size_t len);
-    bool available();
+    int available();
     void close();
     String name() const { return _name; }
     bool isDirectory() const;
@@ -51,6 +51,7 @@ private:
 class SDClass {
 public:
     bool begin(int cs_pin) { return true; }
+    bool mock_slow = false;
 
     void rewindDirectory() { _dir_pos = 0; }
     File openNextFile() {
@@ -72,6 +73,15 @@ public:
             f._set_sd(this);
             return f;
         }
+        // Try without leading slash if present
+        if (name[0] == '/') {
+            std::string name2 = name.substr(1);
+            if (_files.count(name2)) {
+                File f(name2, _files[name2]);
+                f._set_sd(this);
+                return f;
+            }
+        }
         return File();
     }
 
@@ -87,6 +97,7 @@ private:
 };
 
 inline int File::read() {
+    if (_sd && _sd->mock_slow && (_pos % 512 == 0)) delay(5); // Simulate 5ms latency per sector
     if (_pos < (int)_content.length()) {
         return (unsigned char)_content[_pos++];
     }
@@ -94,22 +105,20 @@ inline int File::read() {
 }
 
 inline int File::peek() {
-    if (_pos < (int)_content.length()) {
-        return (unsigned char)_content[_pos];
-    }
-    return -1;
+    return (_pos < (int)_content.length()) ? (unsigned char)_content[_pos] : -1;
 }
 
 inline int File::read(byte* buffer, size_t len) {
     size_t count = 0;
     while (count < len && available()) {
+        // We use the internal read() which handles latency simulation
         buffer[count++] = (byte)read();
     }
     return (int)count;
 }
 
-inline bool File::available() {
-    return _pos < (int)_content.length();
+inline int File::available() {
+    return (int)_content.length() - _pos;
 }
 
 inline void File::close() {

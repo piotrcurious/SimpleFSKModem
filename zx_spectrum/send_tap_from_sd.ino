@@ -67,10 +67,6 @@ void loop() {
       sendTAPFile(currentTAPFile);
       delay(500);
     }
-
-    // BTN_NEXT could act as pause/resume in play mode if we were mid-file
-    // but sendTAPFile is currently blocking. To support pause, we need to
-    // refactor sendTAPFile to be non-blocking.
   }
 }
 
@@ -170,7 +166,9 @@ void sendTAPFile(String fileName) {
 
     // Read block length (16-bit little endian)
     int lsb = tapFile.read();
+    if (lsb < 0) break;
     int msb = tapFile.read();
+    if (msb < 0) break;
     uint16_t length = lsb | (msb << 8);
 
     if (length == 0) break;
@@ -179,8 +177,15 @@ void sendTAPFile(String fileName) {
       break;
     }
 
-    // Read the flag byte (first byte of the block)
-    byte flagByte = tapFile.read();
+    // To ensure no gaps between Sync and Data, we read the first chunk of data
+    // BEFORE starting the Pilot tone.
+    // We use a 512-byte buffer (typical SD sector) to minimize latency.
+    uint16_t bytesToRead = (length > 512) ? 512 : length;
+    byte chunkBuffer[512];
+    int readLen = tapFile.read(chunkBuffer, (size_t)bytesToRead);
+    if (readLen <= 0) break;
+
+    byte flagByte = chunkBuffer[0];
 
     Serial.print("Sending block, size: ");
     Serial.print(length);
@@ -191,30 +196,48 @@ void sendTAPFile(String fileName) {
     modem.sendPilot(flagByte == 0x00 ? TAP_PILOT_HEADER_PULSES : TAP_PILOT_DATA_PULSES);
     modem.sendSync();
 
-    // Send flag byte
-    modem.sendByte(flagByte);
-    byte checksum = flagByte;
+    // Process the block
+    byte checksum = 0;
+    uint16_t bytesProcessed = 0;
 
-    // Send data bytes streaming from SD
-    for (uint16_t i = 1; i < length - 1; i++) {
-        byte b = tapFile.read();
-        modem.sendByte(b);
-        checksum ^= b;
+    // Send first chunk from buffer
+    for (int i = 0; i < readLen; i++) {
+        if (bytesProcessed < length - 1) {
+            modem.sendByte(chunkBuffer[i]);
+            checksum ^= chunkBuffer[i];
+            bytesProcessed++;
+        }
     }
 
-    // Final byte is the stored checksum
-    byte storedChecksum = tapFile.read();
-    modem.sendByte(storedChecksum);
+    // Send remaining chunks
+    while (bytesProcessed < length - 1) {
+        uint16_t toRead = (length - 1 - bytesProcessed > 512) ? 512 : (length - 1 - bytesProcessed);
+        readLen = tapFile.read(chunkBuffer, (size_t)toRead);
+        if (readLen <= 0) break;
 
-    if (checksum != storedChecksum) {
-      Serial.print("Checksum Error! Calculated: 0x");
-      Serial.print(checksum, HEX);
-      Serial.print(" Stored: 0x");
-      Serial.println(storedChecksum, HEX);
+        for (int i = 0; i < readLen; i++) {
+            modem.sendByte(chunkBuffer[i]);
+            checksum ^= chunkBuffer[i];
+            bytesProcessed++;
+        }
+    }
+
+    // Final byte (stored checksum)
+    int checksumInt = tapFile.read();
+    if (checksumInt >= 0) {
+      byte storedChecksum = (byte)checksumInt;
+      modem.sendByte(storedChecksum);
+
+      if (checksum != storedChecksum) {
+        Serial.print("Checksum Error! Calc: 0x");
+        Serial.print(checksum, HEX);
+        Serial.print(" File: 0x");
+        Serial.println(storedChecksum, HEX);
+      }
     }
 
     // Inter-block pause
-    delay(1000);
+    modem.pause(1000);
   }
 
   tapFile.close();
