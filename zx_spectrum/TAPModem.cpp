@@ -1,9 +1,21 @@
 #include "TAPModem.h"
 
+
+TAPModem* _globalModemPtr = nullptr;
+
+#ifdef ARDUINO_ARCH_AVR
+ISR(TIMER1_COMPA_vect) {
+    if (_globalModemPtr) _globalModemPtr->handleInterrupt();
+}
+#endif
+
 TAPModem::TAPModem(int pin) {
   _pin = pin;
   _state = LOW;
   _inverted = false;
+  _running = false;
+  _head = 0;
+  _tail = 0;
 
   _pilotUs = (uint16_t)(TAP_PILOT_T * TAP_TSTATE_US + 0.5);
   _sync1Us = (uint16_t)(TAP_SYNC1_T * TAP_TSTATE_US + 0.5);
@@ -21,12 +33,81 @@ void TAPModem::setInverted(bool inverted) {
   _inverted = inverted;
 }
 
+bool TAPModem::beginInterrupt() {
+#ifdef ARDUINO_ARCH_AVR
+    _globalModemPtr = this;
+    _running = true;
+
+    cli();
+    TCCR1A = 0;
+    TCCR1B = 0;
+    TCNT1  = 0;
+    // CTC mode, prescaler 8 -> 2MHz (0.5us per tick)
+    OCR1A = 2000; // Initial delay
+    TCCR1B = (1 << WGM12) | (1 << CS11); // CTC, prescaler 8
+    TIMSK1 |= (1 << OCIE1A);
+    sei();
+    return true;
+#else
+    return false;
+#endif
+}
+
+void TAPModem::endInterrupt() {
+#ifdef ARDUINO_ARCH_AVR
+    TIMSK1 &= ~(1 << OCIE1A);
+    _running = false;
+#endif
+}
+
+void TAPModem::handleInterrupt() {
+#ifdef ARDUINO_ARCH_AVR
+    if (_head != _tail) {
+        uint16_t us = _pulseBuffer[_head];
+        _head = (_head + 1) % PULSE_BUFFER_SIZE;
+
+        _state = !_state;
+        digitalWrite(_pin, (_state ^ _inverted) ? HIGH : LOW);
+
+        // OCR1A counts at 2MHz, so 2 ticks per microsecond
+        OCR1A = (us * 2) - 1;
+    } else {
+        // Buffer empty, just wait a bit
+        OCR1A = 2000;
+    }
+#endif
+}
+
+bool TAPModem::pulseAsync(uint16_t us) {
+    uint8_t next_tail = (_tail + 1) % PULSE_BUFFER_SIZE;
+    if (next_tail == _head) return false; // Full
+
+    _pulseBuffer[_tail] = us;
+    _tail = next_tail;
+    return true;
+}
+
+bool TAPModem::isBufferFull() {
+    return ((_tail + 1) % PULSE_BUFFER_SIZE) == _head;
+}
+
+bool TAPModem::isBufferEmpty() {
+    return _head == _tail;
+}
+
 void TAPModem::pulse(uint16_t us) {
-  _state = !_state;
-  // Use a local variable to avoid issues with _state toggle
-  int val = (_state ^ _inverted) ? HIGH : LOW;
-  digitalWrite(_pin, val);
-  delayMicroseconds(us);
+  if (_running) {
+      while (isBufferFull()) {
+          // Wait for space in buffer
+      }
+      pulseAsync(us);
+  } else {
+      _state = !_state;
+      // Use a local variable to avoid issues with _state toggle
+      int val = (_state ^ _inverted) ? HIGH : LOW;
+      digitalWrite(_pin, val);
+      delayMicroseconds(us);
+  }
 }
 
 void TAPModem::sendPilot(int pulses, bool startState) {
@@ -47,8 +128,10 @@ void TAPModem::sendBit(bool bit) {
 }
 
 void TAPModem::sendByte(byte data) {
-  for (int i = 7; i >= 0; i--) {
-    sendBit(bitRead(data, i));
+  for (uint8_t mask = 0x80; mask; mask >>= 1) {
+    uint16_t us = (data & mask) ? _oneUs : _zeroUs;
+    pulse(us);
+    pulse(us);
   }
 }
 
@@ -86,7 +169,16 @@ void TAPModem::sendRawBlock(byte* buffer, int length) {
 
 void TAPModem::pause(uint32_t ms) {
     // End the waveform at the current state
-    delay(ms);
+    if (_running) {
+        // Approximate number of silent "pulses" to wait
+        // since we don't have a silence command, we just wait for buffer to drain
+        while (!isBufferEmpty()) {
+            // Wait
+        }
+        delay(ms);
+    } else {
+        if (ms > 0) delay(ms);
+    }
 }
 
 // Method to generate a tone of a given frequency and duration on the audio output pin

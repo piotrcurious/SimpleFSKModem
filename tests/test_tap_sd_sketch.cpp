@@ -4,6 +4,7 @@
 #include <map>
 
 
+SDClass SD;
 // Map button pins to states
 std::map<int, int> button_states;
 int my_digitalRead(int pin) {
@@ -13,6 +14,7 @@ int my_digitalRead(int pin) {
 
 int my_analogRead(int pin) { return 0; }
 
+#define sd SD
 #include "../zx_spectrum/TAPModem.h"
 #include "../zx_spectrum/send_tap_from_sd.ino"
 
