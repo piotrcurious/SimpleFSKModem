@@ -1,8 +1,10 @@
-#include <SD.h>
+#include <SdFat.h>
 #include <SimpleFSKModem.h>
 
 // Define some constants for the SD card
 #define SD_CS_PIN 10
+SdFat sd;
+#define File SdFile
 #define FILE_ORDER_LIST "list.txt"
 
 // Define some constants for the FSK modem
@@ -46,7 +48,7 @@ void handleSixthButton();
 void setup() {
   Serial.begin(115200);
   modem.begin();
-  if (!SD.begin(SD_CS_PIN)) {
+  if (!sd.begin(SD_CS_PIN)) {
     Serial.println("SD card initialization failed!");
     return;
   }
@@ -117,8 +119,8 @@ void loop() {
 }
 
 int readFileOrderList() {
-  File list = SD.open(FILE_ORDER_LIST, FILE_READ);
-  if (!list) {
+  File list;
+  if (!list.open(FILE_ORDER_LIST, O_RDONLY)) {
     Serial.println("Failed to open list.txt!");
     return -1;
   }
@@ -138,8 +140,8 @@ int readFileOrderList() {
 }
 
 void selectFirstFile() {
-  File list = SD.open(FILE_ORDER_LIST, FILE_READ);
-  if (!list) {
+  File list;
+  if (!list.open(FILE_ORDER_LIST, O_RDONLY)) {
     Serial.println("Failed to open list.txt!");
     return;
   }
@@ -156,8 +158,8 @@ void selectFirstFile() {
 }
 
 void selectNextFile() {
-  File list = SD.open(FILE_ORDER_LIST, FILE_READ);
-  if (!list) {
+  File list;
+  if (!list.open(FILE_ORDER_LIST, O_RDONLY)) {
     Serial.println("Failed to open list.txt!");
     return;
   }
@@ -188,8 +190,8 @@ void selectPreviousFile() {
     return;
   }
 
-  File list = SD.open(FILE_ORDER_LIST, FILE_READ);
-  if (!list) {
+  File list;
+  if (!list.open(FILE_ORDER_LIST, O_RDONLY)) {
     Serial.println("Failed to open list.txt!");
     return;
   }
@@ -211,8 +213,8 @@ void selectPreviousFile() {
 }
 
 void selectLastFile() {
-  File list = SD.open(FILE_ORDER_LIST, FILE_READ);
-  if (!list) {
+  File list;
+  if (!list.open(FILE_ORDER_LIST, O_RDONLY)) {
     Serial.println("Failed to open list.txt!");
     return;
   }
@@ -234,8 +236,8 @@ void selectLastFile() {
 }
 
 void sendFile(String fileName) {
-  File data = SD.open(fileName.c_str(), FILE_READ);
-  if (!data) {
+  File data;
+  if (!data.open(fileName.c_str(), O_RDONLY)) {
     Serial.println("Failed to open data file: " + fileName);
     return;
   }
