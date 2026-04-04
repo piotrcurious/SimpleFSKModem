@@ -1,8 +1,11 @@
-#include <SD.h>
+#include <SdFat.h>
 #include "TAPModem.h"
 
 // Pins for SD and Audio
 #define SD_CS_PIN 10
+#ifndef sd
+SdFat sd;
+#endif
 #define FSK_AUDIO_PIN 9
 
 // Pins for Buttons
@@ -24,8 +27,9 @@ void sendTAPFile(String fileName);
 void setup() {
   Serial.begin(115200);
   modem.begin();
+  modem.beginInterrupt();
 
-  if (!SD.begin(SD_CS_PIN)) {
+  if (!sd.begin(SD_CS_PIN, SD_SCK_MHZ(50))) {
     Serial.println("SD initialization failed!");
     return;
   }
@@ -71,22 +75,26 @@ void loop() {
 }
 
 void selectNextTAPFile() {
-  File root = SD.open("/");
+  SdFile root;
+  if (!root.open("/")) {
+      return;
+  }
   bool foundCurrent = (currentTAPFile == "");
   bool nextFound = false;
 
   while (true) {
-    File entry = root.openNextFile();
-    if (!entry) {
+    SdFile entry;
+    if (!entry.openNext(&root, O_RDONLY)) {
       if (nextFound) break;
       // Wrap around
-      root.rewindDirectory();
-      entry = root.openNextFile();
-      if (!entry) break;
+      root.rewind();
+      if (!entry.openNext(&root, O_RDONLY)) break;
     }
 
-    String name = entry.name();
-    if (!entry.isDirectory() && name.endsWith(".tap")) {
+    char nameBuf[100];
+    entry.getName(nameBuf, sizeof(nameBuf));
+    String name = String(nameBuf);
+    if (!entry.isDir() && name.endsWith(".tap")) {
       if (foundCurrent) {
         currentTAPFile = name;
         nextFound = true;
@@ -104,16 +112,21 @@ void selectNextTAPFile() {
 }
 
 void selectPrevTAPFile() {
-  File root = SD.open("/");
+  SdFile root;
+  if (!root.open("/")) {
+      return;
+  }
   String lastTAP = "";
   String prevTAP = "";
 
   while (true) {
-    File entry = root.openNextFile();
-    if (!entry) break;
+    SdFile entry;
+    if (!entry.openNext(&root, O_RDONLY)) break;
 
-    String name = entry.name();
-    if (!entry.isDirectory() && name.endsWith(".tap")) {
+    char nameBuf[100];
+    entry.getName(nameBuf, sizeof(nameBuf));
+    String name = String(nameBuf);
+    if (!entry.isDir() && name.endsWith(".tap")) {
       if (name == currentTAPFile) {
         if (lastTAP != "") prevTAP = lastTAP;
       }
@@ -136,8 +149,8 @@ void selectPrevTAPFile() {
 }
 
 void sendTAPFile(String fileName) {
-  File tapFile = SD.open(fileName.c_str(), FILE_READ);
-  if (!tapFile) {
+  SdFile tapFile;
+  if (!tapFile.open(fileName.c_str(), O_RDONLY)) {
     Serial.println("Failed to open file: " + fileName);
     return;
   }
@@ -199,33 +212,43 @@ void sendTAPFile(String fileName) {
     // Process the block
     byte checksum = 0;
     uint16_t bytesProcessed = 0;
+    byte storedChecksum = 0;
+    bool checksumRead = false;
 
-    // Send first chunk from buffer
+    // Handle bytes from chunkBuffer
     for (int i = 0; i < readLen; i++) {
         if (bytesProcessed < length - 1) {
             modem.sendByte(chunkBuffer[i]);
             checksum ^= chunkBuffer[i];
             bytesProcessed++;
-        }
-    }
-
-    // Send remaining chunks
-    while (bytesProcessed < length - 1) {
-        uint16_t toRead = (length - 1 - bytesProcessed > 512) ? 512 : (length - 1 - bytesProcessed);
-        readLen = tapFile.read(chunkBuffer, (size_t)toRead);
-        if (readLen <= 0) break;
-
-        for (int i = 0; i < readLen; i++) {
-            modem.sendByte(chunkBuffer[i]);
-            checksum ^= chunkBuffer[i];
+        } else if (bytesProcessed == length - 1) {
+            storedChecksum = chunkBuffer[i];
+            checksumRead = true;
             bytesProcessed++;
         }
     }
 
-    // Final byte (stored checksum)
-    int checksumInt = tapFile.read();
-    if (checksumInt >= 0) {
-      byte storedChecksum = (byte)checksumInt;
+    // Send remaining chunks
+    while (bytesProcessed < length) {
+        uint16_t toRead = (length - bytesProcessed > 512) ? 512 : (length - bytesProcessed);
+        readLen = tapFile.read(chunkBuffer, (size_t)toRead);
+        if (readLen <= 0) break;
+
+        for (int i = 0; i < readLen; i++) {
+            if (bytesProcessed < length - 1) {
+                modem.sendByte(chunkBuffer[i]);
+                checksum ^= chunkBuffer[i];
+                bytesProcessed++;
+            } else if (bytesProcessed == length - 1) {
+                storedChecksum = chunkBuffer[i];
+                checksumRead = true;
+                bytesProcessed++;
+            }
+        }
+    }
+
+    // Final byte (checksum)
+    if (checksumRead) {
       modem.sendByte(storedChecksum);
 
       if (checksum != storedChecksum) {

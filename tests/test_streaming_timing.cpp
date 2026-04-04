@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 
+SDClass SD;
 std::map<int, int> button_states;
 int my_digitalRead(int pin) {
     if (button_states.count(pin)) return button_states[pin];
@@ -12,6 +13,7 @@ int my_digitalRead(int pin) {
 
 int my_analogRead(int pin) { return 0; }
 
+#define sd SD
 #include "../zx_spectrum/TAPModem.h"
 #include "../zx_spectrum/send_tap_from_sd.ino"
 
@@ -37,7 +39,7 @@ int main() {
     // Play it
     selectMode = false;
     currentTAPFile = "/test.tap";
-    sendTAPFile(currentTAPFile);
+    sendTAPFile("/test.tap");
 
     std::cout << "Recorded " << pin_events.size() << " pin events." << std::endl;
 

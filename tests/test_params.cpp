@@ -1,4 +1,5 @@
 #include "mock_arduino/Arduino.h"
+#include "mock_arduino/SD.h"
 #include <iostream>
 #include <vector>
 #include "SimpleFSKModem.h"

@@ -41,6 +41,16 @@ class TAPModem {
     void sendBit(bool bit);
     void sendByte(byte data);
 
+
+    // Non-blocking pulse interface
+    bool pulseAsync(uint16_t us);
+    bool isBufferFull();
+    bool isBufferEmpty();
+
+    // Interrupt management
+    bool beginInterrupt();
+    void endInterrupt();
+
     // Higher-level TAP block transmission
     // flag_byte is 0x00 for headers, 0xFF for data blocks
     void sendBlock(byte flag_byte, byte* data, int length);
@@ -60,9 +70,12 @@ class TAPModem {
     // Standard inter-block pause
     void pause(uint32_t ms = 1000);
 
+    // Internal ISR handler (must be public for ISR to access, or use friend)
+    void handleInterrupt();
+
   private:
     int _pin;
-    bool _state;
+    volatile bool _state;
     bool _inverted;
 
     uint16_t _pilotUs;
@@ -70,6 +83,13 @@ class TAPModem {
     uint16_t _sync2Us;
     uint16_t _zeroUs;
     uint16_t _oneUs;
+
+    // Ring Buffer for pulse widths
+    #define PULSE_BUFFER_SIZE 128
+    volatile uint16_t _pulseBuffer[PULSE_BUFFER_SIZE];
+    volatile uint8_t _head;
+    volatile uint8_t _tail;
+    volatile bool _running;
 };
 
 #endif
