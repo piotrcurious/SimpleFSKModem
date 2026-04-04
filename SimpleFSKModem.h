@@ -42,6 +42,11 @@ class SimpleFSKModem {
     int _spaceFreq;
     int _baudRate;
     uint32_t _bitDurationUs;
+
+#ifdef ARDUINO_ARCH_AVR
+    volatile uint8_t *_portReg;
+    uint8_t _pinMask;
+#endif
 };
 
 #endif

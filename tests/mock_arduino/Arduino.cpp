@@ -47,4 +47,9 @@ long map(long x, long in_min, long in_max, long out_min, long out_max) {
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
+uint8_t dummyPort;
+uint8_t* portOutputRegister(uint8_t port) { return &dummyPort; }
+uint8_t digitalPinToPort(uint8_t pin) { return 0; }
+uint8_t digitalPinToBitMask(uint8_t pin) { return 0; }
+
 MockSerial Serial;

@@ -80,6 +80,8 @@ class TAPModem {
     int _pin;
     volatile bool _state;
     bool _inverted;
+    volatile uint8_t *_portReg;
+    uint8_t _pinMask;
     float _speedFactor;
 
     uint16_t _pilotUs;

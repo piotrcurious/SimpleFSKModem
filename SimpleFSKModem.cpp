@@ -17,6 +17,10 @@ void SimpleFSKModem::setParameters(int markFreq, int spaceFreq, int baudRate) {
 // Method to initialize the library
 void SimpleFSKModem::begin() {
   pinMode(_pin, OUTPUT); // Set the pin mode to output
+#ifdef ARDUINO_ARCH_AVR
+  _portReg = portOutputRegister(digitalPinToPort(_pin));
+  _pinMask = digitalPinToBitMask(_pin);
+#endif
 }
 
 // Method to send a byte of data using FSK modulation
@@ -64,9 +68,18 @@ void SimpleFSKModem::tone(int freq, uint32_t duration_us) {
 
   // Loop through each cycle and toggle the pin state
   for (int i = 0; i < cycles; i++) {
+#ifdef ARDUINO_ARCH_AVR
+    *_portReg |= _pinMask;
+#else
     digitalWrite(_pin, HIGH); // Set the pin high
+#endif
     delayMicroseconds((unsigned int)halfPeriod); // Wait for half a period
+
+#ifdef ARDUINO_ARCH_AVR
+    *_portReg &= ~_pinMask;
+#else
     digitalWrite(_pin, LOW); // Set the pin low
+#endif
     delayMicroseconds((unsigned int)(period - (int)halfPeriod)); // Wait for the rest of the period to maintain timing
   }
 }

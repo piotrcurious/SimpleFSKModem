@@ -28,6 +28,10 @@ TAPModem::TAPModem(int pin) {
 void TAPModem::begin() {
   pinMode(_pin, OUTPUT);
   digitalWrite(_pin, _inverted ? HIGH : LOW);
+#ifdef ARDUINO_ARCH_AVR
+  _portReg = portOutputRegister(digitalPinToPort(_pin));
+  _pinMask = digitalPinToBitMask(_pin);
+#endif
 }
 
 void TAPModem::setInverted(bool inverted) {
@@ -73,11 +77,15 @@ void TAPModem::handleInterrupt() {
         uint16_t us = _pulseBuffer[_head];
         _head = (_head + 1) % PULSE_BUFFER_SIZE;
 
-        _state = !_state;
-        digitalWrite(_pin, (_state ^ _inverted) ? HIGH : LOW);
-
-        // OCR1A counts at 2MHz, so 2 ticks per microsecond
+        // Set timer FIRST to avoid losing cycles during processing
         OCR1A = (us * 2) - 1;
+
+        _state = !_state;
+        // Fast direct port manipulation
+        if (_state ^ _inverted)
+            *_portReg |=  _pinMask;
+        else
+            *_portReg &= ~_pinMask;
     } else {
         // Buffer empty, just wait a bit
         OCR1A = 2000;
@@ -122,6 +130,7 @@ void TAPModem::pulse(uint16_t us) {
 }
 
 void TAPModem::sendPilot(int pulses, bool startState) {
+  (void)startState; // Unused for now, maintained for API compatibility
   for (int i = 0; i < pulses; i++) {
     pulse(_pilotUs);
   }
@@ -158,8 +167,8 @@ void TAPModem::sendBlock(byte flag_byte, byte* data, int length) {
   }
   sendByte(checksum);
 
-  // Pause after block
-  delay(1000);
+  // Pause after block (ensure buffer is empty first)
+  pause(1000);
 }
 
 void TAPModem::sendRawBlock(byte* buffer, int length) {
@@ -179,21 +188,22 @@ void TAPModem::sendRawBlock(byte* buffer, int length) {
 }
 
 void TAPModem::pause(uint32_t ms) {
-    // End the waveform at the current state
     if (_running) {
-        // Approximate number of silent "pulses" to wait
-        // since we don't have a silence command, we just wait for buffer to drain
         while (!isBufferEmpty()) {
             // Wait
         }
-        delay(ms);
-    } else {
-        if (ms > 0) delay(ms);
     }
+    // Drive to idle (low) during silence
+    digitalWrite(_pin, _inverted ? HIGH : LOW);
+    _state = LOW; // Sync internal state
+    if (ms > 0) delay(ms);
 }
 
 // Method to generate a tone of a given frequency and duration on the audio output pin
 void TAPModem::tone(int freq, uint32_t duration_us) {
+  bool wasRunning = _running;
+  if (wasRunning) endInterrupt();
+
   float period = 1000000.0 / freq;
   float halfPeriod = period / 2.0;
   int cycles = (int)((float)duration_us / period + 0.5);
@@ -206,6 +216,8 @@ void TAPModem::tone(int freq, uint32_t duration_us) {
     digitalWrite(_pin, (_state ^ _inverted) ? HIGH : LOW);
     delayMicroseconds((unsigned int)(period - (int)halfPeriod));
   }
+
+  if (wasRunning) beginInterrupt();
 }
 
 void TAPModem::sendBasicHeader(String filename, uint16_t type, uint16_t length, uint16_t param1, uint16_t param2) {

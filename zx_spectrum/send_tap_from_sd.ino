@@ -178,6 +178,9 @@ void sendTAPFile(String fileName) {
 
   Serial.println("Sending: " + fileName);
 
+  // 1-second leading silence
+  modem.pause(1000);
+
   while (tapFile.available() >= 2) {
     // Check for EJECT or PAUSE
     if (digitalRead(BTN_EJECT) == LOW) {
