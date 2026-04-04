@@ -24,6 +24,7 @@ typedef uint8_t byte;
 #define INPUT_PULLUP 0x2
 
 #define A0 14
+#define A1 15
 
 #define BTN_NEXT 7
 #define BTN_PREV 6

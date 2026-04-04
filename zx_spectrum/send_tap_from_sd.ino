@@ -14,6 +14,9 @@ SdFat sd;
 #define BTN_SEND 3
 #define BTN_EJECT 8 // New "Eject" button for select mode
 
+// Pin for Turbo Knob
+#define TURBO_KNOB_PIN A1
+
 TAPModem modem(FSK_AUDIO_PIN);
 String currentTAPFile = "";
 bool selectMode = true;
@@ -23,6 +26,8 @@ bool paused = false;
 void selectNextTAPFile();
 void selectPrevTAPFile();
 void sendTAPFile(String fileName);
+
+float lastSpeedFactor = 1.0f;
 
 void setup() {
   Serial.begin(115200);
@@ -43,7 +48,23 @@ void setup() {
   selectNextTAPFile();
 }
 
+void updateTurbo() {
+  int val = analogRead(TURBO_KNOB_PIN);
+  // Map 0-1023 to 1.0x - 3.0x speed
+  float factor = 1.0f + ((float)val / 1023.0f) * 2.0f;
+
+  // Only update if changed significantly (0.05 step) to avoid noise
+  if (abs(factor - lastSpeedFactor) > 0.05f) {
+    lastSpeedFactor = factor;
+    modem.setSpeedFactor(factor);
+    Serial.print("Speed: ");
+    Serial.print((int)(factor * 100));
+    Serial.println("%");
+  }
+}
+
 void loop() {
+  updateTurbo();
   if (digitalRead(BTN_EJECT) == LOW) {
     selectMode = true;
     paused = false;
@@ -230,6 +251,7 @@ void sendTAPFile(String fileName) {
 
     // Send remaining chunks
     while (bytesProcessed < length) {
+        updateTurbo(); // Allow updating speed mid-block
         uint16_t toRead = (length - bytesProcessed > 512) ? 512 : (length - bytesProcessed);
         readLen = tapFile.read(chunkBuffer, (size_t)toRead);
         if (readLen <= 0) break;

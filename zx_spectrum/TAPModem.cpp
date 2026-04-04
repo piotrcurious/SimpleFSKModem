@@ -13,6 +13,7 @@ TAPModem::TAPModem(int pin) {
   _pin = pin;
   _state = LOW;
   _inverted = false;
+  _speedFactor = 1.0f;
   _running = false;
   _head = 0;
   _tail = 0;
@@ -31,6 +32,12 @@ void TAPModem::begin() {
 
 void TAPModem::setInverted(bool inverted) {
   _inverted = inverted;
+}
+
+void TAPModem::setSpeedFactor(float factor) {
+    if (factor < 0.1f) factor = 0.1f;
+    if (factor > 5.0f) factor = 5.0f;
+    _speedFactor = factor;
 }
 
 bool TAPModem::beginInterrupt() {
@@ -96,17 +103,21 @@ bool TAPModem::isBufferEmpty() {
 }
 
 void TAPModem::pulse(uint16_t us) {
+  // Apply speed scaling: higher factor means shorter pulses
+  uint16_t scaledUs = (uint16_t)((float)us / _speedFactor + 0.5f);
+  if (scaledUs < 2) scaledUs = 2; // Safety minimum
+
   if (_running) {
       while (isBufferFull()) {
           // Wait for space in buffer
       }
-      pulseAsync(us);
+      pulseAsync(scaledUs);
   } else {
       _state = !_state;
       // Use a local variable to avoid issues with _state toggle
       int val = (_state ^ _inverted) ? HIGH : LOW;
       digitalWrite(_pin, val);
-      delayMicroseconds(us);
+      delayMicroseconds(scaledUs);
   }
 }
 

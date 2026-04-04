@@ -64,6 +64,9 @@ class TAPModem {
     // New: Support for inverted signals
     void setInverted(bool inverted);
 
+    // New: Turbo speed scaling (1.0 = normal, 2.0 = double speed)
+    void setSpeedFactor(float factor);
+
     // New: Send a string as a Basic header
     void sendBasicHeader(String filename, uint16_t type, uint16_t length, uint16_t param1, uint16_t param2);
 
@@ -77,6 +80,7 @@ class TAPModem {
     int _pin;
     volatile bool _state;
     bool _inverted;
+    float _speedFactor;
 
     uint16_t _pilotUs;
     uint16_t _sync1Us;
