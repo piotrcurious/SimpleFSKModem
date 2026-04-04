@@ -33,6 +33,11 @@ typedef uint8_t byte;
 
 #define bitRead(value, bit) (((value) >> (bit)) & 0x01)
 
+typedef volatile uint8_t* port_register_t;
+uint8_t* portOutputRegister(uint8_t port);
+uint8_t digitalPinToPort(uint8_t pin);
+uint8_t digitalPinToBitMask(uint8_t pin);
+
 class String : public std::string {
 public:
     String(const char* s = "") : std::string(s) {}
