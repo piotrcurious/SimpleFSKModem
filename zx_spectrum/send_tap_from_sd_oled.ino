@@ -1,14 +1,12 @@
 #include <SdFat.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <Wire.h>
+#include "SSD1306Ascii.h"
+#include "SSD1306AsciiWire.h"
 #include "TAPModem.h"
 
-// OLED Display settings
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-#define OLED_RESET    -1
-#define SCREEN_ADDRESS 0x3C
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+// OLED Display settings (using SSD1306Ascii for zero-RAM buffer)
+#define I2C_ADDRESS 0x3C
+SSD1306AsciiWire display;
 
 // Pins for SD and Audio
 #define SD_CS_PIN 10
@@ -34,7 +32,7 @@ String currentTAPFile = "";
 bool selectMode = true;
 bool paused = false;
 
-String statusMsg = "Ready";
+const char* statusMsg = "Ready";
 float lastSpeedFactor = 1.0f;
 
 void updateDisplay();
@@ -46,22 +44,16 @@ void setup() {
   modem.begin();
   modem.beginInterrupt();
 
-  if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
-    Serial.println(F("SSD1306 allocation failed"));
-    for(;;);
-  }
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0,0);
+  Wire.begin();
+  Wire.setClock(400000L);
+  display.begin(&Adafruit128x64, I2C_ADDRESS);
+  display.setFont(Adafruit5x7);
+  display.clear();
   display.println(F("Initializing..."));
-  display.display();
 
   if (!sd.begin(SD_CS_PIN, SD_SCK_MHZ(50))) {
-    display.clearDisplay();
-    display.setCursor(0,0);
+    display.clear();
     display.println(F("SD init failed!"));
-    display.display();
     return;
   }
 
@@ -99,7 +91,7 @@ void loop() {
     if (digitalRead(BTN_NEXT) == LOW) {
       if (selectedIndex < totalFiles - 1) {
         selectedIndex++;
-        if (selectedIndex >= topIndex + 5) topIndex++;
+        if (selectedIndex >= topIndex + 6) topIndex++;
         updateDisplay();
       }
       delay(200);
@@ -168,8 +160,7 @@ void refreshFileList() {
 }
 
 void updateDisplay() {
-  display.clearDisplay();
-  display.setTextSize(1);
+  display.clear();
 
   if (selectMode) {
     display.setCursor(0, 0);
@@ -185,16 +176,16 @@ void updateDisplay() {
       entry.getName(nameBuf, sizeof(nameBuf));
       String name = String(nameBuf);
       if (!entry.isDir() && name.endsWith(".tap")) {
-        if (count >= topIndex && line < 5) {
-          display.setCursor(0, 12 + line * 10);
+        if (count >= topIndex && line < 6) {
           if (count == selectedIndex) {
-            display.setTextColor(SSD1306_BLACK, SSD1306_WHITE); // Invert for selection
+            display.setInvertMode(true);
             display.print(F(">"));
           } else {
-            display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+            display.setInvertMode(false);
             display.print(F(" "));
           }
           display.println(name.substring(0, 20));
+          display.setInvertMode(false);
           line++;
         }
         count++;
@@ -202,34 +193,28 @@ void updateDisplay() {
       entry.close();
     }
     root.close();
-    display.setTextColor(SSD1306_WHITE, SSD1306_BLACK); // Reset
 
-    display.setCursor(0, 56);
+    display.setCursor(0, 7); // Row 7 (8th line)
     display.print(selectedIndex + 1);
     display.print(F("/"));
     display.print(totalFiles);
   } else {
     display.setCursor(0, 0);
     display.println(F("--- Playback ---"));
-    display.setCursor(0, 15);
     display.println(currentTAPFile);
 
-    display.setCursor(0, 30);
     display.print(F("Status: "));
     display.println(statusMsg);
 
-    display.setCursor(0, 45);
     display.print(F("Speed: "));
     display.print((int)(lastSpeedFactor * 100));
     display.println(F("%"));
 
     if (paused) {
-      display.setCursor(90, 30);
+      display.setCursor(0, 6);
       display.println(F("[PAUSE]"));
     }
   }
-
-  display.display();
 }
 
 void sendTAPFile(String fileName) {
@@ -267,13 +252,13 @@ void sendTAPFile(String fileName) {
 
     byte flagByte = chunkBuffer[0];
 
-    display.fillRect(0, 30, 128, 10, SSD1306_BLACK);
-    display.setCursor(0, 30);
-    display.print(F("Block: "));
+    // Quick status update on line 5
+    display.setCursor(0, 5);
+    display.print(F("Blk: "));
     display.print(length);
     display.print(F(" F:"));
     display.print(flagByte, HEX);
-    display.display();
+    display.print(F("      ")); // Clear rest of line
 
     modem.sendPilot(flagByte == 0x00 ? TAP_PILOT_HEADER_PULSES : TAP_PILOT_DATA_PULSES);
     modem.sendSync();
