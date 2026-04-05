@@ -14,12 +14,14 @@ Simple FSK modem for Arduino, including specialized support for ZX Spectrum tape
 - `SimpleFSKModem.h/cpp`: General-purpose FSK modem.
 - `zx_spectrum/TAPModem.h/cpp`: Specialized class for ZX Spectrum `.tap` images using pulse-width modulation.
 - `zx_spectrum/SimpleFSKModem.h/cpp`: Spectrum-compatible FSK (1200 baud, 781/1563 Hz).
-- `zx_spectrum/send_tap_from_sd.ino`: Main sketch for streaming TAP files from an SD card.
+- `zx_spectrum/send_tap_from_sd.ino`: Serial/Button-only TAP sender.
+- `zx_spectrum/send_tap_from_sd_oled.ino`: TAP sender with OLED file browser.
 
 ## Hardware Requirements
 - Arduino (e.g., Uno, Nano).
 - Audio output pin (default 9).
 - SD card module (CS pin 10) for SD sketches.
+- OLED Display (OLED Version): 128x64 SSD1306 via I2C (A4/SDA, A5/SCL).
 - Turbo Knob: Potentiometer on Analog Pin A1.
 - Buttons for file selection:
     - BTN_NEXT: Pin 7 (also Pause in playback)
