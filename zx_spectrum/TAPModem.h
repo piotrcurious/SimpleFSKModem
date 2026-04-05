@@ -90,8 +90,8 @@ class TAPModem {
     uint16_t _zeroUs;
     uint16_t _oneUs;
 
-    // Ring Buffer for pulse widths
-    #define PULSE_BUFFER_SIZE 128
+    // Ring Buffer for pulse widths (Reduced to 64 to save RAM, approx 128 bytes)
+    #define PULSE_BUFFER_SIZE 64
     volatile uint16_t _pulseBuffer[PULSE_BUFFER_SIZE];
     volatile uint8_t _head;
     volatile uint8_t _tail;
